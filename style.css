@@ -1,0 +1,115 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #f0f0f0;
+    touch-action: none; 
+}
+
+#map {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+#draw-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+    touch-action: none; 
+}
+
+#menu-button {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 36px;
+    height: 36px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+#menu-container {
+    position: absolute;
+    top: 55px;
+    left: 10px;
+    width: 200px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 4px;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+#menu-container h3 { margin: 0 0 10px 0; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+#menu-container.hidden { display: none; }
+#layer-list { list-style: none; padding: 0; margin: 0; }
+#layer-list li { margin: 8px 0; }
+#layer-list label { display: flex; align-items: center; font-size: 14px; cursor: pointer; }
+#layer-list input[type="checkbox"] { width: 18px; height: 18px; margin-right: 10px; }
+
+#toolbar {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px;
+    border-radius: 6px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+.tool-btn {
+    height: 36px;
+    min-width: 70px;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.1s, color 0.1s; 
+}
+
+.tool-btn.active {
+    background: #007bff;
+    border-color: #0056b3;
+    color: white;
+}
+
+/* Electronic Blackboard Optimized Zoom Buttons */
+.maplibregl-ctrl-group {
+    border-radius: 8px !important;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+}
+.maplibregl-ctrl-group button {
+    width: 60px !important;
+    height: 60px !important;
+}
+.maplibregl-ctrl-icon {
+    transform: scale(1.5);
+}

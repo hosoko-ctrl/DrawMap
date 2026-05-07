@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Draw_Map</title>
+        <link href="maplibre-gl.css" rel="stylesheet" />
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <div id="map"></div>
+        <canvas id="draw-canvas"></canvas>
+        
+        <button id="menu-button" aria-label="Menu">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+            <path fill="currentColor" d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/>
+            </svg>
+        </button>
+        
+        <div id="menu-container" class="hidden">
+            <h3>Layers</h3>
+            <ul id="layer-list">
+                <li><label><input type="checkbox" data-layer="place" checked> Country / Cities</label></li>
+                <li><label><input type="checkbox" data-layer="boundary" checked> Boundaries</label></li>
+                <li><label><input type="checkbox" data-layer="road" checked> Roads</label></li>
+                <li><label><input type="checkbox" data-layer="water" checked> Water / Rivers</label></li>
+                <li><label><input type="checkbox" data-layer="mountain" checked> Mountains</label></li>
+            </ul>
+        </div>
+        
+        <div id="toolbar">
+            <button id="mode-pan" class="tool-btn active">🖐️ Pan</button>
+            <button id="mode-red" class="tool-btn">🔴 Red</button>
+            <button id="mode-blue" class="tool-btn">🔵 Blue</button>
+            
+            <!-- 名称とアイコンの色を変更 -->
+            <button id="mode-line-red" class="tool-btn">
+                <span style="color: #ff0000; font-weight: bold;">━</span> R.Line
+            </button>
+            <button id="mode-line-blue" class="tool-btn">
+                <span style="color: #0066ff; font-weight: bold;">━</span> B.Line
+            </button>
+            <button id="mode-arrow-red" class="tool-btn">
+                <span style="color: #ff0000; font-weight: bold;">↗&#xFE0E;</span> R.Arrow
+            </button>
+            <button id="mode-arrow-blue" class="tool-btn">
+                <span style="color: #0066ff; font-weight: bold;">↗&#xFE0E;</span> B.Arrow
+            </button>
+            
+            <button id="mode-eraser" class="tool-btn">🧽 Eraser</button>
+            <button id="btn-clear" class="tool-btn">🗑️ Clear</button>
+            <button id="btn-fullscreen" class="tool-btn">🖥️ Full</button>
+        </div>
+        
+        <script src="maplibre-gl.js"></script>
+        <script src="main.js"></script>
+    </body>
+</html>
