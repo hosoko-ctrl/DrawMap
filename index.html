@@ -7,7 +7,7 @@
         <link href="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css" rel="stylesheet" />
         <style>
             body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f0f0f0; touch-action: none; }
-            #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+            #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
             #draw-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; touch-action: none; }
             #menu-button { position: absolute; top: 10px; left: 10px; width: 36px; height: 36px; background: white; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
             #menu-container { position: absolute; top: 55px; left: 10px; width: 220px; background: rgba(255, 255, 255, 0.95); z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; }
@@ -17,14 +17,22 @@
             #layer-list li { margin: 8px 0; }
             #layer-list label { display: flex; align-items: center; font-size: 14px; cursor: pointer; }
             #layer-list input[type="checkbox"] { width: 18px; height: 18px; margin-right: 10px; }
-            #toolbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(255, 255, 255, 0.95); padding: 8px; border-radius: 6px; box-shadow: 0 3px 6px rgba(0,0,0,0.2); z-index: 10; }
+            
+            /* 【新規追加】独立したクレジット枠のスタイル（常に右下に固定され、消えません） */
+            #custom-attribution { position: absolute; bottom: 5px; right: 5px; background-color: rgba(255, 255, 255, 0.85); padding: 3px 6px; font-size: 11px; font-family: sans-serif; border-radius: 4px; z-index: 10; pointer-events: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+            #custom-attribution a { color: #333; text-decoration: none; }
+            #custom-attribution a:hover { text-decoration: underline; }
+            
+            /* ツールバーの位置調整（クレジットに被らないよう bottom: 40px に設定） */
+            #toolbar { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(255, 255, 255, 0.95); padding: 8px; border-radius: 6px; box-shadow: 0 3px 6px rgba(0,0,0,0.2); z-index: 10; }
             .tool-btn { height: 36px; min-width: 70px; font-size: 13px; cursor: pointer; border: 1px solid #ccc; background: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 8px; }
             .tool-btn.active { background: #0076ff; color: white; border-color: #0066ff; }
             
-            .maplibregl-ctrl-top-right { top: 10px; right: 10px; }
+            /* 右上の拡大縮小ボタンがキャンバスの下に隠れないようにする設定 */
+            .maplibregl-ctrl-top-right { top: 10px; right: 10px; z-index: 10; }
             
             @media (max-width: 768px) {
-                #toolbar { width: 92%; max-width: 500px; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 6px; bottom: 15px; }
+                #toolbar { width: 92%; max-width: 500px; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 6px; bottom: 40px; }
                 .tool-btn { height: 34px; min-width: 60px; font-size: 11px; padding: 0 4px; flex: 1 1 calc(25% - 6px); }
                 #menu-container { width: 180px; max-width: 80%; }
                 .maplibregl-ctrl-group button { width: 40px !important; height: 40px !important; }
@@ -34,6 +42,10 @@
     <body>
         <div id="map"></div>
         <canvas id="draw-canvas"></canvas>
+        
+        <div id="custom-attribution">
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>
+        </div>
         
         <button id="menu-button" aria-label="Menu">
             <svg viewBox="0 0 24 24" width="20" height="20">
@@ -78,27 +90,11 @@
                     center: [135, 35],
                     zoom: 4,
                     hash: true,
-                    customAttribution: '© OpenStreetMap contributors',
-                    
-                    // スマホ（Pixel等）の内蔵標準フォントを強制的に割り当てる
-                    localIdeographFontFamily: 'sans-serif',
-                    
-                    // 【新規追加】フォントデータの404エラーや通信ブロックを回避するフィルター
-                    transformRequest: (url, resourceType) => {
-                        if (resourceType === 'Glyphs') {
-                            const match = url.match(/^(.*\/fonts\/)(.*)(\/[^\/]+\.pbf)$/);
-                            if (match) {
-                                const basePath = match[1];
-                                const fonts = decodeURIComponent(match[2]);
-                                // サーバーが複数フォントのリクエストを処理できずエラーになるのを防ぐため、最初の1つだけを要求する
-                                const firstFont = fonts.split(',')[0].trim();
-                                return { url: basePath + encodeURIComponent(firstFont) + match[3] };
-                            }
-                        }
-                        return { url: url };
-                    }
+                    // 【修正点】エラーの原因となる内蔵クレジット機能を完全に無効化します
+                    attributionControl: false 
             });
             
+            // 右上の拡大縮小ボタンを追加
             map.addControl(new maplibregl.NavigationControl(), 'top-right');
             
             const layerCategories = {
