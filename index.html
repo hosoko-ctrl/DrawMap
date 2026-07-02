@@ -4,7 +4,7 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <title>Draw_Map_JP</title>
-        <link href="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css" rel="stylesheet" />
+        <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
         <style>
             body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f0f0f0; touch-action: none; }
             #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -18,17 +18,14 @@
             #layer-list label { display: flex; align-items: center; font-size: 14px; cursor: pointer; }
             #layer-list input[type="checkbox"] { width: 18px; height: 18px; margin-right: 10px; }
             
-            /* 【新規追加】独立したクレジット枠のスタイル（常に右下に固定され、消えません） */
             #custom-attribution { position: absolute; bottom: 5px; right: 5px; background-color: rgba(255, 255, 255, 0.85); padding: 3px 6px; font-size: 11px; font-family: sans-serif; border-radius: 4px; z-index: 10; pointer-events: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
             #custom-attribution a { color: #333; text-decoration: none; }
             #custom-attribution a:hover { text-decoration: underline; }
             
-            /* ツールバーの位置調整（クレジットに被らないよう bottom: 40px に設定） */
             #toolbar { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(255, 255, 255, 0.95); padding: 8px; border-radius: 6px; box-shadow: 0 3px 6px rgba(0,0,0,0.2); z-index: 10; }
             .tool-btn { height: 36px; min-width: 70px; font-size: 13px; cursor: pointer; border: 1px solid #ccc; background: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 8px; }
             .tool-btn.active { background: #0076ff; color: white; border-color: #0066ff; }
             
-            /* 右上の拡大縮小ボタンがキャンバスの下に隠れないようにする設定 */
             .maplibregl-ctrl-top-right { top: 10px; right: 10px; z-index: 10; }
             
             @media (max-width: 768px) {
@@ -58,7 +55,8 @@
             <ul id="layer-list">
                 <li><label><input type="checkbox" data-layer="place" checked> 地名・国名ラベル</label></li>
                 <li><label><input type="checkbox" data-layer="boundary" checked> 国境・行政境界</label></li>
-                <li><label><input type="checkbox" data-layer="road" checked> 道路・鉄道</label></li>
+                <li><label><input type="checkbox" data-layer="road" checked> 道路</label></li>
+                <li><label><input type="checkbox" id="layer-transit"> 交通マップ（鉄道・地下鉄）</label></li>
                 <li><label><input type="checkbox" data-layer="water" checked> 海・川・湖</label></li>
                 <li><label><input type="checkbox" data-layer="mountain" checked> 山・地形</label></li>
             </ul>
@@ -77,7 +75,7 @@
             <button id="btn-fullscreen" class="tool-btn">📺 Full</button>
         </div>
         
-        <script src="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js"></script>
+        <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
         <script>
             let currentMode = 'pan';
             let isDrawing = false;
@@ -90,39 +88,84 @@
                     center: [135, 35],
                     zoom: 4,
                     hash: true,
-                    // 【修正点】エラーの原因となる内蔵クレジット機能を完全に無効化します
-                    attributionControl: false 
+                    attributionControl: false,
+                    // 【重要な追加】日本語の文字を安定して表示するための設定
+                    localIdeographFontFamily: 'sans-serif' 
             });
             
-            // 右上の拡大縮小ボタンを追加
             map.addControl(new maplibregl.NavigationControl(), 'top-right');
             
             const layerCategories = {
                 'place': ['place', 'poi', 'label', 'name', 'settlement'], 
                 'boundary': ['boundary', 'admin'],          
-                'road': ['road', 'bridge', 'tunnel', 'highway', 'railway'], 
+                'road': ['road', 'bridge', 'tunnel', 'highway', 'transportation'], 
+                'transit': ['railway', 'train', 'transit'], 
                 'water': ['water', 'ocean', 'river', 'lake'], 
-                'mountain': ['mountain', 'peak', 'hill', 'contour', 'terrain'] 
+                'mountain': ['mountain', 'peak', 'hill', 'contour', 'terrain', 'landcover'] 
             };
             
+            let originalVisibility = {};
+            
             map.on('load', () => {
-                    document.querySelectorAll('#layer-list input').forEach(checkbox => {
+                    const mapStyle = map.getStyle();
+                    if (mapStyle && mapStyle.layers) {
+                        mapStyle.layers.forEach(layer => {
+                                originalVisibility[layer.id] = (layer.layout && layer.layout.visibility) ? layer.layout.visibility : 'visible';
+                        });
+                    }
+                    
+                    map.addSource('openrailwaymap', {
+                            type: 'raster',
+                            tiles: ['https://a.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png'],
+                            tileSize: 256,
+                            attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | Style: &copy; <a href="https://www.OpenRailwayMap.org">OpenRailwayMap</a>'
+                    });
+                    
+                    map.addLayer({
+                            id: 'transit-layer',
+                            type: 'raster',
+                            source: 'openrailwaymap',
+                            layout: { 'visibility': 'none' },
+                            paint: { 'raster-opacity': 0.85 }
+                    });
+                    originalVisibility['transit-layer'] = 'none';
+                    
+                    const updateVisibility = (category, isChecked) => {
+                        const currentStyle = map.getStyle();
+                        if (!currentStyle || !currentStyle.layers) return;
+                        
+                        currentStyle.layers.forEach(layer => {
+                                const id = layer.id.toLowerCase();
+                                if (layerCategories[category]) {
+                                    const match = layerCategories[category].some(keyword => id.includes(keyword));
+                                    if (match) {
+                                        const targetVisibility = isChecked ? (originalVisibility[layer.id] || 'visible') : 'none';
+                                        map.setLayoutProperty(layer.id, 'visibility', targetVisibility);
+                                    }
+                                }
+                        });
+                    };
+                    
+                    document.querySelectorAll('#layer-list input[data-layer]').forEach(checkbox => {
+                            const category = checkbox.dataset.layer;
                             checkbox.addEventListener('change', (e) => {
-                                    const category = e.target.dataset.layer;
-                                    const isVisible = e.target.checked ? 'visible' : 'none';
-                                    
-                                    const mapLayers = map.getStyle().layers;
-                                    mapLayers.forEach(layer => {
-                                            const id = layer.id.toLowerCase();
-                                            const match = layerCategories[category].some(keyword => id.includes(keyword));
-                                            if (match) {
-                                                map.setLayoutProperty(layer.id, 'visibility', isVisible);
-                                            }
-                                    });
+                                    updateVisibility(category, e.target.checked);
                             });
+                    });
+                    
+                    const transitCheckbox = document.getElementById('layer-transit');
+                    transitCheckbox.checked = false; 
+                    
+                    transitCheckbox.addEventListener('change', (e) => {
+                            const isChecked = e.target.checked;
+                            if (map.getLayer('transit-layer')) {
+                                map.setLayoutProperty('transit-layer', 'visibility', isChecked ? 'visible' : 'none');
+                            }
+                            updateVisibility('transit', isChecked);
                     });
             });
             
+            // --- キャンバス描画の処理 ---
             const canvas = document.getElementById('draw-canvas');
             const ctx = canvas.getContext('2d');
             
