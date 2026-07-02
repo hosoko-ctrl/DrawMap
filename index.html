@@ -71,16 +71,15 @@
             });
             
             map.on('load', () => {
-                    // 1. 鉄道路線データ(Lines)の追加
-                    map.addSource('japan-railways-lines', {
+                    // 1. 鉄道路線データ(Lines)の追加 - 東日本
+                    map.addSource('japan-railways-lines-east', {
                             type: 'geojson',
-                            data: './jpn_railways_lines_geojson.geojson'
+                            data: './jpn_railways_lines_East.geojson'
                     });
-                    
                     map.addLayer({
-                            id: 'transit-layer-lines',
+                            id: 'transit-layer-lines-east',
                             type: 'line',
-                            source: 'japan-railways-lines',
+                            source: 'japan-railways-lines-east',
                             layout: {
                                 'line-cap': 'round',
                                 'line-join': 'round',
@@ -93,15 +92,45 @@
                                 14, 4,
                                 18, 8
                                 ],
-                                // 会社の種類(operator:type)で色分け
-                                // ご提示のOSMデータ内の属性を想定してマッチング
                                 'line-color': [
                                 'match',
                                 ['get', 'operator:type'],
-                                'national', '#FF8C00', // JR在来線・新幹線などを想定（オレンジ）
-                                'private', '#0000FF',  // 私鉄：近鉄・名鉄・阪急などを想定（青）
-                                'public', '#888888',   // 公営：地下鉄などを想定（灰色）
-                                '#555555'              // その他（第3セクター、モノレール等）
+                                'national', '#FF8C00', // JR（オレンジ）
+                                'private', '#0000FF',  // 私鉄（青）
+                                'public', '#888888',   // 地下鉄など（灰色）
+                                '#555555'              // その他
+                                ]
+                            }
+                    });
+                    
+                    // 1.5 鉄道路線データ(Lines)の追加 - 西日本
+                    map.addSource('japan-railways-lines-west', {
+                            type: 'geojson',
+                            data: './jpn_railways_lines_West.geojson'
+                    });
+                    map.addLayer({
+                            id: 'transit-layer-lines-west',
+                            type: 'line',
+                            source: 'japan-railways-lines-west',
+                            layout: {
+                                'line-cap': 'round',
+                                'line-join': 'round',
+                                'visibility': 'none' // 最初は非表示
+                            },
+                            paint: {
+                                'line-width': [
+                                'interpolate', ['linear'], ['zoom'],
+                                10, 1.5,
+                                14, 4,
+                                18, 8
+                                ],
+                                'line-color': [
+                                'match',
+                                ['get', 'operator:type'],
+                                'national', '#FF8C00', // JR（オレンジ）
+                                'private', '#0000FF',  // 私鉄（青）
+                                'public', '#888888',   // 地下鉄など（灰色）
+                                '#555555'              // その他
                                 ]
                             }
                     });
@@ -177,8 +206,9 @@
                     });
                     
                     document.getElementById('layer-transit').addEventListener('change', (e) => {
-                            // 今回追加した3つの独自交通レイヤーを同時にON/OFF
-                            toggleLayer('transit-layer-lines', e.target.checked);
+                            // 分割した東西の路線レイヤーと、駅レイヤーをすべてON/OFF
+                            toggleLayer('transit-layer-lines-east', e.target.checked);
+                            toggleLayer('transit-layer-lines-west', e.target.checked);
                             toggleLayer('transit-layer-stations', e.target.checked);
                             toggleLayer('transit-layer-station-labels', e.target.checked);
                     });
