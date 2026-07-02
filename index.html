@@ -4,223 +4,127 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <title>Draw_Map_JP</title>
-        <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+        <link href="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css" rel="stylesheet" />
         <style>
             body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f0f0f0; touch-action: none; }
             #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
             #draw-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; touch-action: none; }
             #menu-button { position: absolute; top: 10px; left: 10px; width: 36px; height: 36px; background: white; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-            #menu-container { position: absolute; top: 55px; left: 10px; background: white; border: 1px solid #ccc; border-radius: 4px; padding: 10px; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: 220px; font-family: sans-serif; font-size: 14px; }
-            .menu-item { margin-bottom: 8px; display: flex; align-items: center; }
-            .menu-item:last-child { margin-bottom: 0; }
-            .menu-item input { margin-right: 8px; }
-            .hidden { display: none !important; }
-            #toolbar { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.9); padding: 6px 12px; border-radius: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); z-index: 10; display: flex; gap: 8px; align-items: center; }
-            .tool-btn { border: 1px solid #ccc; background: white; padding: 6px 12px; border-radius: 15px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 4px; }
-            .tool-btn.active { background: #007bff; color: white; border-color: #0056b3; }
-            .color-picker { width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 3px rgba(0,0,0,0.5); cursor: pointer; padding: 0; overflow: hidden; }
-            .color-picker::-webkit-color-swatch-wrapper { padding: 0; }
-            .color-picker::-webkit-color-swatch { border: none; border-radius: 50%; }
+            #menu-container { position: absolute; top: 55px; left: 10px; width: 220px; background: rgba(255, 255, 255, 0.95); z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; }
+            #menu-container h3 { margin: 0 0 10px 0; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+            #menu-container.hidden { display: none; }
+            #layer-list { list-style: none; padding: 0; margin: 0; }
+            #layer-list li { margin: 8px 0; }
+            #layer-list label { display: flex; align-items: center; font-size: 14px; cursor: pointer; }
+            #layer-list input[type="checkbox"] { width: 18px; height: 18px; margin-right: 10px; }
+            
+            /* 【新規追加】独立したクレジット枠のスタイル（常に右下に固定され、消えません） */
+            #custom-attribution { position: absolute; bottom: 5px; right: 5px; background-color: rgba(255, 255, 255, 0.85); padding: 3px 6px; font-size: 11px; font-family: sans-serif; border-radius: 4px; z-index: 10; pointer-events: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+            #custom-attribution a { color: #333; text-decoration: none; }
+            #custom-attribution a:hover { text-decoration: underline; }
+            
+            /* ツールバーの位置調整（クレジットに被らないよう bottom: 40px に設定） */
+            #toolbar { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(255, 255, 255, 0.95); padding: 8px; border-radius: 6px; box-shadow: 0 3px 6px rgba(0,0,0,0.2); z-index: 10; }
+            .tool-btn { height: 36px; min-width: 70px; font-size: 13px; cursor: pointer; border: 1px solid #ccc; background: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 8px; }
+            .tool-btn.active { background: #0076ff; color: white; border-color: #0066ff; }
+            
+            /* 右上の拡大縮小ボタンがキャンバスの下に隠れないようにする設定 */
+            .maplibregl-ctrl-top-right { top: 10px; right: 10px; z-index: 10; }
+            
+            @media (max-width: 768px) {
+                #toolbar { width: 92%; max-width: 500px; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 6px; bottom: 40px; }
+                .tool-btn { height: 34px; min-width: 60px; font-size: 11px; padding: 0 4px; flex: 1 1 calc(25% - 6px); }
+                #menu-container { width: 180px; max-width: 80%; }
+                .maplibregl-ctrl-group button { width: 40px !important; height: 40px !important; }
+            }
         </style>
     </head>
     <body>
         <div id="map"></div>
         <canvas id="draw-canvas"></canvas>
         
-        <button id="menu-button" title="メニュー">☰</button>
+        <div id="custom-attribution">
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>
+        </div>
+        
+        <button id="menu-button" aria-label="Menu">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+            <path fill="currentColor" d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/>
+            </svg>
+        </button>
+        
         <div id="menu-container" class="hidden">
-            <div class="menu-item"><label><input type="checkbox" id="layer-buildings" checked> 建物</label></div>
-            <div class="menu-item"><label><input type="checkbox" id="layer-roads" checked> 道路</label></div>
-            <div class="menu-item"><label><input type="checkbox" id="layer-transit"> 交通マップ(鉄道・地下鉄)</label></div>
+            <h3>レイヤー設定</h3>
+            <ul id="layer-list">
+                <li><label><input type="checkbox" data-layer="place" checked> 地名・国名ラベル</label></li>
+                <li><label><input type="checkbox" data-layer="boundary" checked> 国境・行政境界</label></li>
+                <li><label><input type="checkbox" data-layer="road" checked> 道路・鉄道</label></li>
+                <li><label><input type="checkbox" data-layer="water" checked> 海・川・湖</label></li>
+                <li><label><input type="checkbox" data-layer="mountain" checked> 山・地形</label></li>
+            </ul>
         </div>
         
         <div id="toolbar">
-            <button id="btn-pan" class="tool-btn active">🖐️ Move</button>
-            <button id="btn-draw" class="tool-btn">✏️ Draw</button>
-            <input type="color" id="stroke-color" class="color-picker" value="#ff0000">
+            <button id="mode-pan" class="tool-btn active">🖐️ Pan</button>
+            <button id="mode-red" class="tool-btn">🔴 Red</button>
+            <button id="mode-blue" class="tool-btn">🔵 Blue</button>
+            <button id="mode-line-red" class="tool-btn"><span style="color: #ff0000; font-weight: bold;">━</span> R.Line</button>
+            <button id="mode-line-blue" class="tool-btn"><span style="color: #0066ff; font-weight: bold;">━</span> B.Line</button>
+            <button id="mode-arrow-red" class="tool-btn"><span style="color: #ff0000; font-weight: bold;">↗&#xFE0E;</span> R.Arrow</button>
+            <button id="mode-arrow-blue" class="tool-btn"><span style="color: #0066ff; font-weight: bold;">↗&#xFE0E;</span> B.Arrow</button>
+            <button id="mode-eraser" class="tool-btn">🧽 Eraser</button>
             <button id="btn-clear" class="tool-btn">🗑️ Clear</button>
             <button id="btn-fullscreen" class="tool-btn">📺 Full</button>
         </div>
         
-        <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+        <script src="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js"></script>
         <script>
-            // URLハッシュから位置を復元、またはデフォルト（東京駅付近）
-            let initialCenter = [139.7671, 35.6812];
-            let initialZoom = 11;
-            if (window.location.hash) {
-                const parts = window.location.hash.substring(1).split('/');
-                if (parts.length === 3) {
-                    const z = parseFloat(parts[0]);
-                    const lat = parseFloat(parts[1]);
-                    const lng = parseFloat(parts[2]);
-                    if (!isNaN(z) && !isNaN(lat) && !isNaN(lng)) {
-                        initialCenter = [lng, lat];
-                        initialZoom = z;
-                    }
-                }
-            }
+            let currentMode = 'pan';
+            let isDrawing = false;
+            let strokes = []; 
+            let currentStroke = null;
             
-            const map = new maplibre-gl.Map({
+            const map = new maplibregl.Map({
                     container: 'map',
-                    style: 'https://tile.openstreetmap.jp/styles/maptiler-toner-ja/style.json', // より線が引き立つスタイルに変更
-                    center: initialCenter,
-                    zoom: initialZoom,
-                    minZoom: 1,
-                    maxZoom: 18,
-                    hash: true
+                    style: 'https://tiles.openfreemap.org/styles/liberty', 
+                    center: [135, 35],
+                    zoom: 4,
+                    hash: true,
+                    // 【修正点】エラーの原因となる内蔵クレジット機能を完全に無効化します
+                    attributionControl: false 
             });
             
+            // 右上の拡大縮小ボタンを追加
+            map.addControl(new maplibregl.NavigationControl(), 'top-right');
+            
+            const layerCategories = {
+                'place': ['place', 'poi', 'label', 'name', 'settlement'], 
+                'boundary': ['boundary', 'admin'],          
+                'road': ['road', 'bridge', 'tunnel', 'highway', 'railway'], 
+                'water': ['water', 'ocean', 'river', 'lake'], 
+                'mountain': ['mountain', 'peak', 'hill', 'contour', 'terrain'] 
+            };
+            
             map.on('load', () => {
-                    // 1. 鉄道路線データ(Lines)の追加 - 東日本
-                    map.addSource('japan-railways-lines-east', {
-                            type: 'geojson',
-                            data: './jpn_railways_lines_East.geojson'
-                    });
-                    map.addLayer({
-                            id: 'transit-layer-lines-east',
-                            type: 'line',
-                            source: 'japan-railways-lines-east',
-                            layout: {
-                                'line-cap': 'round',
-                                'line-join': 'round',
-                                'visibility': 'none' // 最初は非表示
-                            },
-                            paint: {
-                                'line-width': [
-                                'interpolate', ['linear'], ['zoom'],
-                                10, 1.5,
-                                14, 4,
-                                18, 8
-                                ],
-                                'line-color': [
-                                'match',
-                                ['get', 'operator:type'],
-                                'national', '#FF8C00', // JR（オレンジ）
-                                'private', '#0000FF',  // 私鉄（青）
-                                'public', '#888888',   // 地下鉄など（灰色）
-                                '#555555'              // その他
-                                ]
-                            }
-                    });
-                    
-                    // 1.5 鉄道路線データ(Lines)の追加 - 西日本
-                    map.addSource('japan-railways-lines-west', {
-                            type: 'geojson',
-                            data: './jpn_railways_lines_West.geojson'
-                    });
-                    map.addLayer({
-                            id: 'transit-layer-lines-west',
-                            type: 'line',
-                            source: 'japan-railways-lines-west',
-                            layout: {
-                                'line-cap': 'round',
-                                'line-join': 'round',
-                                'visibility': 'none' // 最初は非表示
-                            },
-                            paint: {
-                                'line-width': [
-                                'interpolate', ['linear'], ['zoom'],
-                                10, 1.5,
-                                14, 4,
-                                18, 8
-                                ],
-                                'line-color': [
-                                'match',
-                                ['get', 'operator:type'],
-                                'national', '#FF8C00', // JR（オレンジ）
-                                'private', '#0000FF',  // 私鉄（青）
-                                'public', '#888888',   // 地下鉄など（灰色）
-                                '#555555'              // その他
-                                ]
-                            }
-                    });
-                    
-                    // 2. 鉄道駅データ(Points)の追加
-                    map.addSource('japan-railways-points', {
-                            type: 'geojson',
-                            data: './jpn_railways_points_geojson.geojson'
-                    });
-                    
-                    // 駅の丸印レイヤー
-                    map.addLayer({
-                            id: 'transit-layer-stations',
-                            type: 'circle',
-                            source: 'japan-railways-points',
-                            layout: {
-                                'visibility': 'none'
-                            },
-                            paint: {
-                                'circle-radius': [
-                                'interpolate', ['linear'], ['zoom'],
-                                10, 2,
-                                14, 5,
-                                18, 8
-                                ],
-                                'circle-color': '#FFFFFF',
-                                'circle-stroke-width': 2,
-                                'circle-stroke-color': '#333333'
-                            }
-                    });
-                    
-                    // 駅名テキストレイヤー
-                    map.addLayer({
-                            id: 'transit-layer-station-labels',
-                            type: 'symbol',
-                            source: 'japan-railways-points',
-                            layout: {
-                                'visibility': 'none',
-                                'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']], // 日本語名があれば優先
-                                'text-size': 12,
-                                'text-offset': [0, 1.2],
-                                'text-anchor': 'top'
-                            },
-                            paint: {
-                                'text-color': '#333333',
-                                'text-halo-color': '#FFFFFF',
-                                'text-halo-width': 1.5
-                            }
-                    });
-                    
-                    // レイヤーメニューの連動設定
-                    const toggleLayer = (layerId, checked) => {
-                        if (map.getLayer(layerId)) {
-                            map.setLayoutProperty(layerId, 'visibility', checked ? 'visible' : 'none');
-                        }
-                    };
-                    
-                    document.getElementById('layer-buildings').addEventListener('change', (e) => {
-                            toggleLayer('building', e.target.checked);
-                            toggleLayer('3d-buildings', e.target.checked);
-                    });
-                    
-                    document.getElementById('layer-roads').addEventListener('change', (e) => {
-                            // OSMベースマップの主要な道路レイヤーをコントロール
-                            const roadLayers = ['tunnel', 'road', 'bridge'];
-                            roadLayers.forEach(prefix => {
-                                    map.getStyle().layers.forEach(layer => {
-                                            if (layer.id.startsWith(prefix)) {
-                                                toggleLayer(layer.id, e.target.checked);
+                    document.querySelectorAll('#layer-list input').forEach(checkbox => {
+                            checkbox.addEventListener('change', (e) => {
+                                    const category = e.target.dataset.layer;
+                                    const isVisible = e.target.checked ? 'visible' : 'none';
+                                    
+                                    const mapLayers = map.getStyle().layers;
+                                    mapLayers.forEach(layer => {
+                                            const id = layer.id.toLowerCase();
+                                            const match = layerCategories[category].some(keyword => id.includes(keyword));
+                                            if (match) {
+                                                map.setLayoutProperty(layer.id, 'visibility', isVisible);
                                             }
                                     });
                             });
                     });
-                    
-                    document.getElementById('layer-transit').addEventListener('change', (e) => {
-                            // 分割した東西の路線レイヤーと、駅レイヤーをすべてON/OFF
-                            toggleLayer('transit-layer-lines-east', e.target.checked);
-                            toggleLayer('transit-layer-lines-west', e.target.checked);
-                            toggleLayer('transit-layer-stations', e.target.checked);
-                            toggleLayer('transit-layer-station-labels', e.target.checked);
-                    });
             });
             
-            // --- キャンバスお絵描きシステムの処理（変更なし） ---
             const canvas = document.getElementById('draw-canvas');
             const ctx = canvas.getContext('2d');
-            let isDrawing = false;
-            let currentMode = 'pan'; 
-            let strokes = []; 
-            let currentStroke = null;
             
             function resizeCanvas() {
                 canvas.width = window.innerWidth;
@@ -228,81 +132,144 @@
                 renderCanvas();
             }
             window.addEventListener('resize', resizeCanvas);
+            map.on('move', renderCanvas);
+            map.on('zoom', renderCanvas);
             
-            function getCanvasCoords(e) {
+            function getEventPos(e) {
                 const rect = canvas.getBoundingClientRect();
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                return { x: clientX - rect.left, y: clientY - rect.top };
+                if (e.touches && e.touches.length > 0) {
+                    return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+                }
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
             }
             
             function renderCanvas() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 strokes.forEach(stroke => {
-                        if (stroke.points.length < 2) return;
+                        if (stroke.points.length < 1) return;
                         ctx.beginPath();
                         ctx.strokeStyle = stroke.color;
-                        ctx.lineWidth = 3;
+                        ctx.lineWidth = stroke.lineWidth || 3;
                         ctx.lineCap = 'round';
                         ctx.lineJoin = 'round';
-                        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-                        for (let i = 1; i < stroke.points.length; i++) {
-                            ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                        const p0 = map.project(stroke.points[0]);
+                        ctx.moveTo(p0.x, p0.y);
+                        
+                        if (stroke.type === 'free' || stroke.type === 'eraser') {
+                            for (let i = 1; i < stroke.points.length; i++) {
+                                const p = map.project(stroke.points[i]);
+                                ctx.lineTo(p.x, p.y);
+                            }
+                            ctx.stroke();
+                        } else if (stroke.type === 'line' && stroke.points.length > 1) {
+                            const p1 = map.project(stroke.points[1]);
+                            ctx.lineTo(p1.x, p1.y);
+                            ctx.stroke();
+                        } else if (stroke.type === 'arrow' && stroke.points.length > 1) {
+                            const p1 = map.project(stroke.points[1]);
+                            ctx.lineTo(p1.x, p1.y);
+                            ctx.stroke();
+                            drawArrowHead(p0, p1, stroke.color, stroke.lineWidth || 3);
                         }
-                        ctx.stroke();
                 });
             }
             
-            function startDrawing(e) {
-                if (currentMode !== 'draw') return;
-                isDrawing = true;
-                const coords = getCanvasCoords(e);
-                const color = document.getElementById('stroke-color').value;
-                currentStroke = { color: color, points: [coords] };
-                strokes.push(currentStroke);
+            function drawArrowHead(from, to, color, width) {
+                const headLength = 15;
+                const angle = Math.atan2(to.y - from.y, to.x - from.x);
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(to.x, to.y);
+                ctx.lineTo(to.x - headLength * Math.cos(angle - Math.PI / 6), to.y - headLength * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(to.x - headLength * Math.cos(angle + Math.PI / 6), to.y - headLength * Math.sin(angle + Math.PI / 6));
+                ctx.fill();
             }
             
-            function draw(e) {
-                if (!isDrawing || currentMode !== 'draw') return;
-                const coords = getCanvasCoords(e);
-                currentStroke.points.push(coords);
+            function startDrawing(e) {
+                if (currentMode === 'pan') return;
+                if (e.touches && e.touches.length > 1) return;
+                if (e.cancelable) e.preventDefault();
+                isDrawing = true;
+                const pos = getEventPos(e);
+                const lngLat = map.unproject([pos.x, pos.y]);
+                let type = 'free', color = '#ff0000';
+                if (currentMode === 'red') { type = 'free'; color = '#ff0000'; }
+                else if (currentMode === 'blue') { type = 'free'; color = '#0066ff'; }
+                else if (currentMode === 'line-red') { type = 'line'; color = '#ff0000'; }
+                else if (currentMode === 'line-blue') { type = 'line'; color = '#0066ff'; }
+                else if (currentMode === 'arrow-red') { type = 'arrow'; color = '#ff0000'; }
+                else if (currentMode === 'arrow-blue') { type = 'arrow'; color = '#0066ff'; }
+                else if (currentMode === 'eraser') { type = 'eraser'; }
+                
+                if (type === 'eraser') { eraseAt(pos); } 
+                else {
+                    currentStroke = { type: type, color: color, points: [lngLat], lineWidth: 4 };
+                    strokes.push(currentStroke);
+                }
                 renderCanvas();
             }
             
-            function stopDrawing() { isDrawing = false; currentStroke = null; }
+            function draw(e) {
+                if (!isDrawing || currentMode === 'pan') return;
+                if (e.touches && e.touches.length > 1) return;
+                if (e.cancelable) e.preventDefault();
+                const pos = getEventPos(e);
+                const lngLat = map.unproject([pos.x, pos.y]);
+                if (currentMode === 'eraser') { eraseAt(pos); } 
+                else if (currentStroke) {
+                    if (currentStroke.type === 'free') { currentStroke.points.push(lngLat); } 
+                    else {
+                        if (currentStroke.points.length > 1) { currentStroke.points[1] = lngLat; } 
+                        else { currentStroke.points.push(lngLat); }
+                    }
+                    renderCanvas();
+                }
+            }
+            
+            function eraseAt(pos) {
+                const threshold = 20;
+                function getDistanceToSegment(p, v, w) {
+                    const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
+                    if (l2 === 0) return Math.sqrt(Math.pow(p.x - v.x, 2) + Math.pow(p.y - v.y, 2));
+                    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+                    t = Math.max(0, Math.min(1, t)); 
+                    const projX = v.x + t * (w.x - v.x);
+                    const projY = v.y + t * (w.y - v.y);
+                    return Math.sqrt(Math.pow(p.x - projX, 2) + Math.pow(p.y - projY, 2));
+                }
+                strokes = strokes.filter(stroke => {
+                        if (stroke.points.length === 1) {
+                            const sp = map.project(stroke.points[0]);
+                            return Math.sqrt(Math.pow(pos.x - sp.x, 2) + Math.pow(pos.y - sp.y, 2)) >= threshold;
+                        }
+                        for (let i = 0; i < stroke.points.length - 1; i++) {
+                            const p1 = map.project(stroke.points[i]);
+                            const p2 = map.project(stroke.points[i + 1]);
+                            if (getDistanceToSegment(pos, p1, p2) < threshold) return false;
+                        }
+                        return true;
+                });
+                renderCanvas();
+            }
             
             canvas.addEventListener('mousedown', startDrawing);
             canvas.addEventListener('mousemove', draw);
-            window.addEventListener('mouseup', stopDrawing);
-            canvas.addEventListener('touchstart', startDrawing, { passive: true });
-            canvas.addEventListener('touchmove', draw, { passive: true });
-            window.addEventListener('touchend', stopDrawing);
+            canvas.addEventListener('mouseup', () => { isDrawing = false; currentStroke = null; });
+            canvas.addEventListener('touchstart', startDrawing, { passive: false });
+            canvas.addEventListener('touchmove', draw, { passive: false });
+            canvas.addEventListener('touchend', () => { isDrawing = false; currentStroke = null; });
             
-            document.getElementById('btn-pan').addEventListener('click', () => {
-                    currentMode = 'pan';
-                    document.getElementById('btn-pan').classList.add('active');
-                    document.getElementById('btn-draw').classList.remove('active');
-                    canvas.style.pointerEvents = 'none';
-            });
-            
-            document.getElementById('btn-draw').addEventListener('click', () => {
-                    currentMode = 'draw';
-                    document.getElementById('btn-draw').classList.add('active');
-                    document.getElementById('btn-pan').classList.remove('active');
-                    canvas.style.pointerEvents = 'auto';
-            });
-            
-            map.on('movestart', () => { if (currentMode === 'pan') { canvas.style.pointerEvents = 'none'; } });
-            map.on('move', () => { if (currentMode === 'pan') { strokes = []; renderCanvas(); } });
-            map.on('moveend', () => {
-                    if (currentMode === 'pan') {
-                        map.getCanvas().focus();
-                        if (strokes.length > 0) {
-                            strokes = [];
-                            renderCanvas();
-                            canvas.style.pointerEvents = (currentMode === 'pan') ? 'none' : 'auto';
-                        }
-                    }
+            const buttons = document.querySelectorAll('.tool-btn');
+            buttons.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                            const id = btn.id;
+                            if (id.startsWith('mode-')) {
+                                buttons.forEach(b => b.classList.remove('active'));
+                                btn.classList.add('active');
+                                currentMode = id.replace('mode-', '');
+                                canvas.style.pointerEvents = (currentMode === 'pan') ? 'none' : 'auto';
+                            }
+                    });
             });
             
             document.getElementById('btn-clear').addEventListener('click', () => { strokes = []; renderCanvas(); });
