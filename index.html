@@ -89,7 +89,6 @@
                     zoom: 4,
                     hash: true,
                     attributionControl: false,
-                    // 【重要な追加】日本語の文字を安定して表示するための設定
                     localIdeographFontFamily: 'sans-serif' 
             });
             
@@ -108,27 +107,43 @@
             
             map.on('load', () => {
                     const mapStyle = map.getStyle();
+                    let firstLabelId;
+                    const transitLayers = [];
+                    
                     if (mapStyle && mapStyle.layers) {
+                        // 1. 文字（ラベル）レイヤーの先頭IDを取得
+                        for (const layer of mapStyle.layers) {
+                            if (layer.type === 'symbol') {
+                                firstLabelId = layer.id;
+                                break;
+                            }
+                        }
+                        
+                        // 2. 全レイヤーの初期可視性を記憶し、鉄道関連レイヤーを抽出
                         mapStyle.layers.forEach(layer => {
                                 originalVisibility[layer.id] = (layer.layout && layer.layout.visibility) ? layer.layout.visibility : 'visible';
+                                
+                                const id = layer.id.toLowerCase();
+                                const isTransit = layerCategories['transit'].some(keyword => id.includes(keyword));
+                                if (isTransit && layer.type === 'line') {
+                                    transitLayers.push(layer.id);
+                                }
+                        });
+                        
+                        // 3. 鉄道レイヤーを一括カスタマイズ（道路の上・文字の下へ移動し、一律で青色・太線化）
+                        transitLayers.forEach(layerId => {
+                                if (firstLabelId) {
+                                    map.moveLayer(layerId, firstLabelId); // 道路より上に並び替え
+                                }
+                                map.setPaintProperty(layerId, 'line-color', '#0066ff'); // 全路線を一律で青色に
+                                map.setPaintProperty(layerId, 'line-width', [ // ズームレベルに応じて見やすい太さに調整
+                                    'interpolate', ['linear'], ['zoom'],
+                                    4, 2,
+                                    10, 4,
+                                    15, 6
+                                ]);
                         });
                     }
-                    
-                    map.addSource('openrailwaymap', {
-                            type: 'raster',
-                            tiles: ['https://a.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png'],
-                            tileSize: 256,
-                            attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | Style: &copy; <a href="https://www.OpenRailwayMap.org">OpenRailwayMap</a>'
-                    });
-                    
-                    map.addLayer({
-                            id: 'transit-layer',
-                            type: 'raster',
-                            source: 'openrailwaymap',
-                            layout: { 'visibility': 'none' },
-                            paint: { 'raster-opacity': 0.85 }
-                    });
-                    originalVisibility['transit-layer'] = 'none';
                     
                     const updateVisibility = (category, isChecked) => {
                         const currentStyle = map.getStyle();
@@ -158,11 +173,11 @@
                     
                     transitCheckbox.addEventListener('change', (e) => {
                             const isChecked = e.target.checked;
-                            if (map.getLayer('transit-layer')) {
-                                map.setLayoutProperty('transit-layer', 'visibility', isChecked ? 'visible' : 'none');
-                            }
                             updateVisibility('transit', isChecked);
                     });
+                    
+                    // 初期状態では鉄道レイヤーを非表示にしておく
+                    updateVisibility('transit', false);
             });
             
             // --- キャンバス描画の処理 ---
